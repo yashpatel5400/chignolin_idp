@@ -5,6 +5,7 @@ Functions for generating :class:`~conformer_rl.config.mol_config.MolConfig` obje
 """
 from conformer_rl.config import MolConfig
 from conformer_rl.utils import calculate_normalizers
+from conformer_rl.utils import rdkit_utils
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import logging
@@ -119,7 +120,8 @@ def config_from_rdkit(mol: Chem.rdchem.Mol, num_conformers: int, calc_normalizer
     """
 
     config = MolConfig()
-    mol = _preprocess_mol(mol)
+    # mol = _preprocess_mol(mol)
+
     config.mol = mol
     config.num_conformers = num_conformers
     if calc_normalizers:

@@ -101,7 +101,8 @@ class AtomCoordsTypeGraphObsMixin:
             is a list of all the torsions of the molecule, where each torsion is represented by a list of four integers, where the integers
             are the indices of the four atoms making up the torsion.
         """
-        mol = Chem.rdmolops.RemoveHs(self.mol)
+        # mol = Chem.rdmolops.RemoveHs(self.mol)
+        mol = self.mol
         conf = mol.GetConformer()
         atoms = mol.GetAtoms()
         bonds = mol.GetBonds()

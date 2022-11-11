@@ -8,6 +8,9 @@ Pre-built action handlers.
 from rdkit import Chem
 from typing import List
 
+from conformer_rl.utils import optimize_conf
+from conformer_rl.utils import rdkit_utils
+
 class ContinuousActionMixin:
     """For each torsion of the molecule, modifies the torsion given an angle from a continuous range.
     """
@@ -30,7 +33,7 @@ class ContinuousActionMixin:
         conf = self.conf
         for idx, tors in enumerate(self.nonring):
             Chem.rdMolTransforms.SetDihedralDeg(conf, *tors, float(action[idx]))
-        Chem.AllChem.MMFFOptimizeMolecule(self.mol, maxIters=500, nonBondedThresh=10., confId=self.mol.GetNumConformers() - 1)
+        optimize_conf(self.mol, conf_id=self.mol.GetNumConformers() - 1)
         self.episode_info['mol'].AddConformer(self.conf, assignId=True)
     
 class DiscreteActionMixin:
@@ -54,5 +57,5 @@ class DiscreteActionMixin:
         for idx, tors in enumerate(self.nonring):
             ang = -180 + 60 * action[idx]
             Chem.rdMolTransforms.SetDihedralDeg(self.conf, *tors, float(ang))
-        Chem.AllChem.MMFFOptimizeMolecule(self.mol, maxIters=500, nonBondedThresh=10., confId=self.mol.GetNumConformers() - 1)
+        optimize_conf(self.mol, conf_id=self.mol.GetNumConformers() - 1)
         self.episode_info['mol'].AddConformer(self.conf, assignId=True)

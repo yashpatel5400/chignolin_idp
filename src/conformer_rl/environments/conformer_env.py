@@ -10,6 +10,7 @@ from rdkit.Chem import AllChem as Chem
 from rdkit.Chem import TorsionFingerprints
 from conformer_rl.utils import get_conformer_energy
 from conformer_rl.config import MolConfig
+from conformer_rl.utils import set_simulator_context
 
 import logging
 from typing import List, Tuple, Mapping, Any
@@ -39,13 +40,14 @@ class ConformerEnv(gym.Env):
     """
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, mol_config: MolConfig):
+    def __init__(self, mol_config: MolConfig, tag = None):
         gym.Env.__init__(self)
         logging.debug('initializing conformer environment')
         self.config = copy.deepcopy(mol_config)
         self.max_steps = mol_config.num_conformers
         self.total_reward = 0
         self.current_step = 0
+        self.tag = tag
 
         self.step_info = {}
         self.episode_info = {}
@@ -122,6 +124,8 @@ class ConformerEnv(gym.Env):
         self.episode_info = {}
         self.episode_info['mol'] = Chem.Mol(self.mol)
         self.episode_info['mol'].RemoveAllConformers()
+
+        set_simulator_context(self.config.mol_name)
 
         obs = self._obs()
 
