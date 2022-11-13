@@ -57,8 +57,8 @@ class BaseACAgentRecurrent(BaseACAgent, BaseAgentRecurrent):
 
                 #step the environment with the action determined by the prediction
                 next_states, rewards, terminals, _ = self.task.step(to_np(prediction['a']))
-                curriculum_indices = self.task.curriculum_indices
-
+                curriculum_indices = self.task.get_attr("curriculum_index")
+                
                 self.total_rewards += np.asarray(rewards)
 
                 top_rewards_avgs = []
