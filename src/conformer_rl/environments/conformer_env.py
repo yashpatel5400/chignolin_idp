@@ -48,7 +48,8 @@ class ConformerEnv(gym.Env):
         self.total_reward = 0
         self.current_step = 0
         self.tag = tag
-
+        self.curriculum_index = 0
+        
         self.step_info = {}
         self.episode_info = {}
 

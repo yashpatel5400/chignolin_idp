@@ -26,6 +26,7 @@ class BaseACAgent(BaseAgent):
         super().__init__(config)
 
         self.total_rewards = np.zeros(self.num_workers)
+        self.episode_rewards = [[] for _ in range(self.num_workers)]
         self.states = self.task.reset()
         self.prediction = None
 

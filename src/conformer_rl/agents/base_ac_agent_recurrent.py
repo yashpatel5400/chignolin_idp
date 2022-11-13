@@ -57,28 +57,38 @@ class BaseACAgentRecurrent(BaseACAgent, BaseAgentRecurrent):
 
                 #step the environment with the action determined by the prediction
                 next_states, rewards, terminals, _ = self.task.step(to_np(prediction['a']))
+                curriculum_indices = self.task.curriculum_indices
 
                 self.total_rewards += np.asarray(rewards)
 
-                for idx, done in enumerate(terminals):
-                    if done:
-                        logging.info(f'logging episodic return train... {self.total_steps}')
-                        self.train_logger.add_scalar('episodic_return_train', self.total_rewards[idx], self.total_steps)
-                        self.total_rewards[idx] = 0.
-
-                        # zero out lstm states for finished environments
-                        for rstate in self.recurrent_states:
-                            rstate[:, idx].zero_()
-
-                #add everything to storage
+                top_rewards_avgs = []
+                for idx, reward in enumerate(rewards):
+                    self.episode_rewards[idx].append(reward)
+                    sorted_rewards = sorted(self.episode_rewards[idx], reverse=True)
+                    top_rewards_avg = np.median(sorted_rewards[:self.config.curriculum_stable_conformers[curriculum_indices[idx]]])
+                    top_rewards_avgs.append(top_rewards_avg)
+                
+                #add everything to storage                
                 storage.append(prediction)
                 storage.append({
                     'states': states,
                     'terminals': torch.tensor(terminals).unsqueeze(-1).to(device),
                     'r': torch.tensor(rewards).unsqueeze(-1).to(device),
-                    'm': torch.tensor(1 - terminals).unsqueeze(-1).to(device)
+                    'm': torch.tensor(1 - terminals).unsqueeze(-1).to(device),
+                    'max_r': torch.tensor(top_rewards_avgs).unsqueeze(-1).to(device)
                     })
                 states = next_states
+                
+                for idx, done in enumerate(terminals):
+                    if done:
+                        logging.info(f'logging episodic return train... {self.total_steps}')
+                        self.train_logger.add_scalar('episodic_return_train', self.total_rewards[idx], self.total_steps)
+                        self.total_rewards[idx] = 0.
+                        self.episode_rewards[idx] = []
+
+                        # zero out lstm states for finished environments
+                        for rstate in self.recurrent_states:
+                            rstate[:, idx].zero_()
 
 
         self.states = states

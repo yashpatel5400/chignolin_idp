@@ -5,6 +5,7 @@ class SimpleVecEnv():
     def __init__(self, env_fns):
         self.envs = [fn() for fn in env_fns]
         self.num_envs = len(env_fns)
+        self.curriculum_indices = [env.curriculum_index for env in self.envs]
         self.actions = None
 
     def step(self, actions):
@@ -15,6 +16,7 @@ class SimpleVecEnv():
                 obs = self.envs[i].reset()
             data.append([obs, rew, done, info])
         obs, rew, done, info = zip(*data)
+        self.curriculum_indices = [env.curriculum_index for env in self.envs]
         return obs, np.asarray(rew), np.asarray(done), info
 
     def reset(self):

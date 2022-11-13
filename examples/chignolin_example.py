@@ -31,9 +31,10 @@ if __name__ == '__main__':
     # Create mol_configs for the curriculum
     chignolin_fasta = "YYDPETGTWY"
     curriculum_lens = [3, 5, 7, 10]
+    curricula_num_conformers = [300, 500, 700, 1000]
 
     mol_configs = []
-    for curriculum_len in curriculum_lens:
+    for idx, curriculum_len in enumerate(curriculum_lens):
         curriculum_fasta = chignolin_fasta[:curriculum_len]
         filename = f"{curriculum_fasta}.pkl"
         if os.path.exists(filename):
@@ -47,7 +48,7 @@ if __name__ == '__main__':
             curriculum_mol = Chem.rdmolfiles.MolFromPDBFile(chignolin_pdb_fn, removeHs=False)
             Chem.SanitizeMol(curriculum_mol)
     
-            mol_config = config_from_rdkit(curriculum_mol, num_conformers=1000, calc_normalizers=True) 
+            mol_config = config_from_rdkit(curriculum_mol, num_conformers=curricula_num_conformers[idx], calc_normalizers=True) 
             mol_config.mol_name = curriculum_fasta
             with open(filename, "wb") as f:
                 pickle.dump(mol_config, f)
@@ -74,7 +75,8 @@ if __name__ == '__main__':
     config.ppo_ratio_clip = 0.2
 
     # curriculum Hyperparameters
-    tag = f"curriculum_chignolin_reward={config.curriculum_agent_reward_thresh}_success={config.curriculum_agent_success_rate}"
+    tag = f"curriculum_chignolin_overall_min"
+    config.curriculum_stable_conformers = [10, 10, 15, 20] # number of "true" stable conformers: used for assessing the agent per level
     config.curriculum_agent_buffer_len = 20
     config.curriculum_agent_reward_thresh = 0.4
     config.curriculum_agent_success_rate = 0.7
@@ -82,7 +84,7 @@ if __name__ == '__main__':
     config.tag = tag
 
     # Task Settings
-    config.train_env = Task('GibbsScoreLogPruningCurriculumEnv-v0', concurrency=True, num_envs=5, seed=np.random.randint(0,1e5), mol_configs=mol_configs, tag=tag)
+    config.train_env = Task('GibbsScoreLogPruningCurriculumEnv-v0', concurrency=True, num_envs=10, seed=np.random.randint(0,1e5), mol_configs=mol_configs, tag=tag)
     config.eval_env = Task('GibbsScoreLogPruningEnv-v0', seed=np.random.randint(0,7e4), mol_config=eval_mol_config, tag=tag)
     config.eval_interval = 20000
     config.eval_episodes = 2

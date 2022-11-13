@@ -49,6 +49,7 @@ class CurriculumConformerEnv(ConformerEnv):
         logging.debug('initializing curriculum conformer environment')
         self.configs = copy.deepcopy(mol_configs)
         self.curriculum_max_index = 1
+        self.curriculum_index = 0
         self.tag = tag
 
         self.config = self.configs[0]
@@ -74,19 +75,19 @@ class CurriculumConformerEnv(ConformerEnv):
 
         # set index for the next molecule based on curriculum
         if self.curriculum_max_index == 1:
-            index = 0
+            self.curriculum_index = 0
         else:
             p = 0.5 * np.ones(self.curriculum_max_index) / (self.curriculum_max_index - 1)
             p[-1] = 0.5
-            index = np.random.choice(self.curriculum_max_index, p=p)
-
-        logging.debug(f'Current Curriculum Molecule Index: {index}')
+            self.curriculum_index = np.random.choice(self.curriculum_max_index, p=p)
+        
+        logging.debug(f'Current Curriculum Molecule Index: {self.curriculum_index}')
         
         with open(f"steps_{self.tag}.txt", "a") as f:
-            f.writelines([f'Current Curriculum Molecule Index: {index}\n'])
+            f.writelines([f'Current Curriculum Molecule Index: {self.curriculum_index}\n'])
 
         # set up current molecule
-        mol_config = self.configs[index]
+        mol_config = self.configs[self.curriculum_index]
         set_simulator_context(mol_config.mol_name)
         self.config = mol_config
         self.max_steps = mol_config.num_conformers

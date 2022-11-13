@@ -72,7 +72,7 @@ class ExternalCurriculumAgentMixin():
         If the ratio is less than the ``curriculum_agent_fail_rate`` parameter, the environment is told to decrease the difficulty.
         """
         current_terminals = torch.cat(self.storage['terminals']).squeeze()
-        current_rewards = torch.cat(self.storage['r']).squeeze()
+        current_rewards = torch.cat(self.storage['max_r']).squeeze()
         self.reward_buffer.extend(current_rewards[current_terminals == True].tolist())
 
         if len(self.reward_buffer) >= self.curriculum_buffer_len:
