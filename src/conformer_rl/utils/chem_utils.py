@@ -29,7 +29,8 @@ def set_simulator_context(mol_name):
     global simulator
     if torch.cuda.is_available():
         platform = openmm.Platform.getPlatformByName("CUDA")
-        prop = dict(CudaPrecision="mixed", DeviceIndex="0")
+        assigned_gpu = np.random.randint(0, torch.cuda.device_count())
+        prop = dict(CudaPrecision="mixed", DeviceIndex=f"{assigned_gpu}")
         simulator = app.Simulation(pdb.topology, system, integrator, platform, prop)
     else:
         platform = openmm.Platform.getPlatformByName("CPU")

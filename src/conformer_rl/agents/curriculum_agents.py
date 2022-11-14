@@ -79,6 +79,9 @@ class ExternalCurriculumAgentMixin():
             rewbuf = np.array(self.reward_buffer)
             pass_rate = (rewbuf >= self.curriculum_reward_thresh).mean()
 
+            with open(f"steps_{self.config.tag}.txt", "a") as f:
+                f.writelines([f'Pass rate: {pass_rate}\n'])
+
             if pass_rate > self.curriculum_success_rate:
                 self.task.env_method('increase_level')
                 self.reward_buffer.clear()

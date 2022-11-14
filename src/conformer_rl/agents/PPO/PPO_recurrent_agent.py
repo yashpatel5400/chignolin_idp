@@ -114,6 +114,8 @@ class PPORecurrentAgent(BaseACAgentRecurrent):
 
                     entropy = prediction['ent'].mean()
 
+                    # have to chop probs to account for envs being at different curriculum stages
+                    sampled_log_probs_old = sampled_log_probs_old[...,:prediction['log_pi_a'].shape[-1]]
                     ratio = (prediction['log_pi_a'] - sampled_log_probs_old).exp()
 
                     obj = ratio * sampled_advantages
