@@ -7,7 +7,7 @@ Pre-built reward handlers.
 import numpy as np
 from rdkit import Chem
 
-from conformer_rl.utils import get_conformer_energies, get_conformer_energy, prune_conformers, prune_last_conformer
+from conformer_rl.utils import prune_last_conformer
 
 KB = 0.001985875 # Boltzmann constant in kcal/(mol * K)
 
@@ -38,7 +38,7 @@ class GibbsRewardMixin:
         """
         config = self.config
 
-        energy = get_conformer_energy(self.mol)
+        energy = self.simulator.get_conformer_energy(self.mol)
         self.step_info['energy'] = energy
 
         if tuple(self.action) in self.seen:
@@ -73,7 +73,7 @@ class GibbsEndPruningRewardMixin:
 
         self.backup_mol.AddConformer(self.conf, assignId=True)
 
-        energy = get_conformer_energy(self.mol)
+        energy = self.simulator.get_conformer_energy(self.mol)
         self.step_info['energy'] = energy
 
         reward = np.exp(-1. * (energy - config.E0) / (KB * config.tau)) / config.Z0
@@ -85,9 +85,9 @@ class GibbsEndPruningRewardMixin:
     def _pruning_penalty(self):
         config = self.config
 
-        before_total = np.exp(-1.0 * (get_conformer_energies(self.backup_mol) - config.E0) / (KB * config.tau)).sum() / config.Z0
-        self.backup_mol = prune_conformers(self.backup_mol, config.pruning_thresh)
-        after_total = np.exp(-1.0 * (get_conformer_energies(self.backup_mol) - config.E0) / (KB * config.tau)).sum() / config.Z0
+        before_total = np.exp(-1.0 * (self.simulator.get_conformer_energies(self.backup_mol) - config.E0) / (KB * config.tau)).sum() / config.Z0
+        self.backup_mol = self.simulator.prune_conformers(self.backup_mol, config.pruning_thresh)
+        after_total = np.exp(-1.0 * (self.simulator.get_conformer_energies(self.backup_mol) - config.E0) / (KB * config.tau)).sum() / config.Z0
         return before_total - after_total
 
 class GibbsPruningRewardMixin:
@@ -113,7 +113,7 @@ class GibbsPruningRewardMixin:
         config = self.config
         
         self.backup_mol.AddConformer(self.conf, assignId=True)
-        energy = get_conformer_energy(self.mol)
+        energy = self.simulator.get_conformer_energy(self.mol)
         self.step_info['energy'] = energy
         self.backup_energys.append(energy)
 
@@ -142,7 +142,7 @@ class GibbsLogPruningRewardMixin(GibbsPruningRewardMixin):
         config = self.config
 
         self.backup_mol.AddConformer(self.conf, assignId=True)
-        energy = get_conformer_energy(self.mol)
+        energy = self.simulator.get_conformer_energy(self.mol)
         self.step_info['energy'] = energy
         self.backup_energys.append(energy)
 

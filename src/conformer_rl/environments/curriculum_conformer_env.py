@@ -14,7 +14,7 @@ import gym
 
 from conformer_rl.config import MolConfig
 from conformer_rl.environments.conformer_env import ConformerEnv
-from conformer_rl.utils import set_simulator_context
+from conformer_rl.utils import MDSimulator
 
 class CurriculumConformerEnv(ConformerEnv):
     """Base interface for building conformer generation environments with support for curriculum learning.
@@ -48,6 +48,7 @@ class CurriculumConformerEnv(ConformerEnv):
         gym.Env.__init__(self)
         logging.debug('initializing curriculum conformer environment')
         self.configs = copy.deepcopy(mol_configs)
+        self.simulator = MDSimulator([config.mol_fn for config in self.configs])
         self.curriculum_max_index = 1
         self.curriculum_index = 0
         self.tag = tag
@@ -88,7 +89,9 @@ class CurriculumConformerEnv(ConformerEnv):
 
         # set up current molecule
         mol_config = self.configs[self.curriculum_index]
-        set_simulator_context(mol_config.mol_name)
+        
+        self.simulator.set_activate_stage(mol_config.mol_fn)
+
         self.config = mol_config
         self.max_steps = mol_config.num_conformers
         self.mol = mol_config.mol

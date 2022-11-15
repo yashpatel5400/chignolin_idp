@@ -4,8 +4,7 @@ Molecule Config Generators
 Functions for generating :class:`~conformer_rl.config.mol_config.MolConfig` objects given an input molecule.
 """
 from conformer_rl.config import MolConfig
-from conformer_rl.utils import calculate_normalizers
-from conformer_rl.utils import rdkit_utils
+from conformer_rl.utils import MDSimulator
 from rdkit import Chem
 from rdkit.Chem import AllChem
 import logging
@@ -88,7 +87,7 @@ def config_from_smiles(smiles: str, num_conformers: int, calc_normalizers: bool 
     mol = Chem.MolFromSmiles(smiles)
     return config_from_rdkit(mol, num_conformers, calc_normalizers, pruning_thresh, save_file)
 
-def config_from_rdkit(mol: Chem.rdchem.Mol, num_conformers: int, calc_normalizers: bool = False, pruning_thresh: float=0.05, save_file: str = "") -> MolConfig:
+def config_from_rdkit(mol_fn: str, num_conformers: int, calc_normalizers: bool = False, pruning_thresh: float=0.05, save_file: str = "", simulator: MDSimulator = None) -> MolConfig:
     """Generates a :class:`~conformer_rl.config.mol_config.MolConfig` object for a molecule specified by an rdkit molecule object.
 
     Parameters
@@ -112,6 +111,9 @@ def config_from_rdkit(mol: Chem.rdchem.Mol, num_conformers: int, calc_normalizer
         If not set to an empty string, the generated config object will be saved as a pickle (.pkl) file with the filename
         set to this parameter.
 
+    pdb_fn : str
+        File used to load the molecule (used for seeding OpenMM simulations later)
+
     Returns
     -------
     :class:`~conformer_rl.config.mol_config.MolConfig`
@@ -120,12 +122,16 @@ def config_from_rdkit(mol: Chem.rdchem.Mol, num_conformers: int, calc_normalizer
     """
 
     config = MolConfig()
+    mol = Chem.rdmolfiles.MolFromPDBFile(mol_fn, removeHs=False)
+    Chem.SanitizeMol(mol)
+    config.mol_fn = mol_fn
+    simulator.set_activate_stage(mol_fn)
     # mol = _preprocess_mol(mol)
 
     config.mol = mol
     config.num_conformers = num_conformers
     if calc_normalizers:
-        config.E0, config.Z0 = calculate_normalizers(mol, num_conformers, pruning_thresh)
+        config.E0, config.Z0 = simulator.calculate_normalizers(mol, num_conformers, pruning_thresh)
 
     logging.info('mol_config object constructed for the following molecule:')
     logging.info(Chem.MolToMolBlock(mol))

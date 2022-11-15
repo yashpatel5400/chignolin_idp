@@ -4,6 +4,7 @@ Chemistry Utilities
 
 Chemistry and molecule utility functions.
 """
+import os
 import torch
 import numpy as np
 import openmm
@@ -17,65 +18,167 @@ from rdkit.Geometry import Point3D
 from typing import Tuple, List
 import logging
 
-simulator = None
+class MDSimulator:
+    def __init__(self, curriculum_pdbs):
+        self.simulators = {}
+        
+        for curriculum_pdb in curriculum_pdbs:
+            pdb = app.pdbfile.PDBFile(curriculum_pdb)
+            forcefield = app.forcefield.ForceField("amber99sbildn.xml", "tip3p.xml")
+            system = forcefield.createSystem(
+                pdb.topology, nonbondedMethod = app.forcefield.NoCutoff, constraints = app.forcefield.HBonds)
+            integrator = openmm.VerletIntegrator(0.002 * u.picoseconds)
 
-def set_simulator_context(mol_name):
-    pdb = app.pdbfile.PDBFile(f"src/conformer_rl/molecule_generation/chignolin/{mol_name}.pdb")
-    forcefield = app.forcefield.ForceField("amber99sbildn.xml", "tip3p.xml")
-    system = forcefield.createSystem(
-        pdb.topology, nonbondedMethod = app.forcefield.NoCutoff, constraints = app.forcefield.HBonds)
-    integrator = openmm.VerletIntegrator(0.002 * u.picoseconds)
+            if torch.cuda.is_available():
+                platform = openmm.Platform.getPlatformByName("CUDA")
+                assigned_gpu = np.random.randint(0, torch.cuda.device_count())
+                prop = dict(CudaPrecision="mixed", DeviceIndex=f"{assigned_gpu}")
+                simulator = app.Simulation(pdb.topology, system, integrator, platform, prop)
+            else:
+                platform = openmm.Platform.getPlatformByName("CPU")
+                simulator = app.Simulation(pdb.topology, system, integrator, platform, prop)
+            self.simulators[curriculum_pdb] = simulator
+        
+        self.active_curriculum_stage = ""
 
-    global simulator
-    if torch.cuda.is_available():
-        platform = openmm.Platform.getPlatformByName("CUDA")
-        assigned_gpu = np.random.randint(0, torch.cuda.device_count())
-        prop = dict(CudaPrecision="mixed", DeviceIndex=f"{assigned_gpu}")
-        simulator = app.Simulation(pdb.topology, system, integrator, platform, prop)
-    else:
-        platform = openmm.Platform.getPlatformByName("CPU")
-        simulator = app.Simulation(pdb.topology, system, integrator, platform, prop)
+    def set_activate_stage(self, active_curriculum_stage):
+        self.active_curriculum_stage = active_curriculum_stage
 
-def np_to_mm(arr: np.ndarray, unit: openmm.unit=u.angstrom):
-    wrapped_val = openmm.unit.quantity.Quantity(arr, unit)
-    return wrapped_val
+    def _np_to_mm(self, arr: np.ndarray, unit: openmm.unit=u.angstrom):
+        wrapped_val = openmm.unit.quantity.Quantity(arr, unit)
+        return wrapped_val
 
-def optimize_conf(mol, conf_id):
-    conf = mol.GetConformer(conf_id)
-    positions = np_to_mm(conf.GetPositions())
-    simulator.context.setPositions(positions)
-    simulator.context.setVelocitiesToTemperature(300 * u.kelvin)
-    simulator.minimizeEnergy(maxIterations=500)
+    def optimize_conf(self, mol, conf_id):
+        conf = mol.GetConformer(conf_id)
+        positions = self._np_to_mm(conf.GetPositions())
+        
+        simulator = self.simulators[self.active_curriculum_stage]
+        simulator.context.setPositions(positions)
+        simulator.context.setVelocitiesToTemperature(300 * u.kelvin)
+        simulator.minimizeEnergy(maxIterations=500)
 
-    # OpenMM returns all of its positions in nm, so we have to convert back to Angstroms for RDKit
-    optimized_positions_nm = simulator.context.getState(getPositions=True).getPositions()
-    optimized_positions = optimized_positions_nm.in_units_of(u.angstrom) # match RDKit/MMFF convention
+        # OpenMM returns all of its positions in nm, so we have to convert back to Angstroms for RDKit
+        optimized_positions_nm = simulator.context.getState(getPositions=True).getPositions()
+        optimized_positions = optimized_positions_nm.in_units_of(u.angstrom) # match RDKit/MMFF convention
 
-    for i, pos in enumerate(optimized_positions):
-        conf.SetAtomPosition(i, Point3D(pos.x, pos.y, pos.z))
+        for i, pos in enumerate(optimized_positions):
+            conf.SetAtomPosition(i, Point3D(pos.x, pos.y, pos.z))
 
-def get_conformer_energy(mol: Chem.Mol, confId: int = None):
-    if confId is None:
-        confId = mol.GetNumConformers() - 1
-    conf = mol.GetConformer(confId)
+    def get_conformer_energy(self, mol: Chem.Mol, confId: int = None):
+        if confId is None:
+            confId = mol.GetNumConformers() - 1
+        conf = mol.GetConformer(confId)
 
-    positions = np_to_mm(conf.GetPositions())
-    simulator.context.setPositions(positions)
-    simulator.context.setVelocitiesToTemperature(300 * u.kelvin)
-    energy_kj = simulator.context.getState(getEnergy=True).getPotentialEnergy()
-    energy_kcal = energy_kj.in_units_of(u.kilocalories_per_mole) # match RDKit/MMFF convention
-    return energy_kcal._value
+        positions = self._np_to_mm(conf.GetPositions())
+        simulator = self.simulators[self.active_curriculum_stage]
+        simulator.context.setPositions(positions)
+        simulator.context.setVelocitiesToTemperature(300 * u.kelvin)
+        energy_kj = simulator.context.getState(getEnergy=True).getPotentialEnergy()
+        energy_kcal = energy_kj.in_units_of(u.kilocalories_per_mole) # match RDKit/MMFF convention
+        return energy_kcal._value
 
-def get_conformer_energies(mol: Chem.Mol) -> List[float]:
-    """Returns a list of energies for each conformer in `mol`.
+    def get_conformer_energies(self, mol: Chem.Mol) -> List[float]:
+        """Returns a list of energies for each conformer in `mol`.
+        """
+        energies = []
+        Chem.MMFFSanitizeMolecule(mol)
+        for conf in mol.GetConformers():
+            energy = self.get_conformer_energy(mol, conf.GetId())
+            energies.append(energy)
+        
+        return np.asarray(energies, dtype=float)
+
+    def prune_conformers(self, mol: Chem.Mol, tfd_thresh: float) -> Chem.Mol:
+        """Prunes all the conformers in the molecule.
+
+        Removes conformers that have a TFD (torsional fingerprint deviation) lower than
+        `tfd_thresh` with other conformers. Lowest energy conformers are kept.
+
+        Parameters
+        ----------
+        mol : RDKit Mol
+            The molecule to be pruned.
+        tfd_thresh : float
+            The minimum threshold for TFD between conformers.
+
+        Returns
+        -------
+        mol : RDKit Mol
+            The updated molecule after pruning.
+        """
+        if tfd_thresh < 0 or mol.GetNumConformers() <= 1:
+            return mol
+
+        energies = self.get_conformer_energies(mol)
+        tfd = tfd_matrix(mol)
+        sort = np.argsort(energies)  # sort by increasing energy
+        keep = []  # always keep lowest-energy conformer
+        discard = []
+
+        for i in sort:
+            this_tfd = tfd[i][np.asarray(keep, dtype=int)]
+            # discard conformers within the tfd threshold
+            if np.all(this_tfd >= tfd_thresh):
+                keep.append(i)
+            else:
+                discard.append(i)
+
+        # create a new molecule to hold the chosen conformers
+        # this ensures proper conformer IDs and energy-based ordering
+        new = Chem.Mol(mol)
+        new.RemoveAllConformers()
+        for i in keep:
+            conf = mol.GetConformer(int(i))
+            new.AddConformer(conf, assignId=True)
+
+        return new
+
+    def calculate_normalizers(self, mol: Chem.Mol, num_confs: int = 200, pruning_thresh: float = 0.05) -> Tuple[float, float]:
+        """Calculates the :math:`E_0` and :math:`Z_0` normalizing constants for a molecule used in the TorsionNet [1]_ paper.
+
+        Parameters
+        ----------
+        mol : RDKit Mol
+            The molecule of interest.
+        num_confs : int
+            The number of conformers to generate when calculating the constants. Should equal
+            the number of steps for each episode of the environment containing this molecule.
+        pruning_thresh : float
+            TFD threshold for pruning the conformers of `mol`.
+
+        References
+        ----------
+        .. [1] `TorsionNet paper <https://arxiv.org/abs/2006.07078>`_
+        """
+        Chem.MMFFSanitizeMolecule(mol)
+        confslist = Chem.EmbedMultipleConfs(mol, numConfs = num_confs, useRandomCoords=True)
+        if (len(confslist) < 1):
+            raise Exception('Unable to embed molecule with conformer using rdkit')
+        
+        for conf_id in range(mol.GetNumConformers()):
+            self.optimize_conf(mol, conf_id)
+        
+        mol = self.prune_conformers(mol, pruning_thresh)
+        energys = self.get_conformer_energies(mol)
+        E0 = energys.min()
+        Z0 = np.sum(np.exp(-(energys - E0)))
+
+        mol.RemoveAllConformers()
+
+        return E0, Z0
+
+
+def tfd_matrix(mol: Chem.Mol) -> np.array:
+    """Calculates the TFD matrix for all conformers in a molecule.
     """
-    energies = []
-    Chem.MMFFSanitizeMolecule(mol)
-    for conf in mol.GetConformers():
-        energy = get_conformer_energy(mol, conf.GetId())
-        energies.append(energy)
-    
-    return np.asarray(energies, dtype=float)
+    tfd = TorsionFingerprints.GetTFDMatrix(mol, useWeights=False)
+    n = int(np.sqrt(len(tfd)*2))+1
+    idx = np.tril_indices(n, k=-1, m=n)
+    matrix = np.zeros((n,n))
+    matrix[idx] = tfd
+    matrix += np.transpose(matrix)
+    return matrix
+
 
 def prune_last_conformer(mol: Chem.Mol, tfd_thresh: float, energies: List[float]) -> Tuple[Chem.Mol, List[float]]:
     """Prunes the last conformer of the molecule.
@@ -124,93 +227,3 @@ def prune_last_conformer(mol: Chem.Mol, tfd_thresh: float, energies: List[float]
             new.AddConformer(conf, assignId=True)
 
         return new, [energies[i] for i in keep]
-
-def prune_conformers(mol: Chem.Mol, tfd_thresh: float) -> Chem.Mol:
-    """Prunes all the conformers in the molecule.
-
-    Removes conformers that have a TFD (torsional fingerprint deviation) lower than
-    `tfd_thresh` with other conformers. Lowest energy conformers are kept.
-
-    Parameters
-    ----------
-    mol : RDKit Mol
-        The molecule to be pruned.
-    tfd_thresh : float
-        The minimum threshold for TFD between conformers.
-
-    Returns
-    -------
-    mol : RDKit Mol
-        The updated molecule after pruning.
-    """
-    if tfd_thresh < 0 or mol.GetNumConformers() <= 1:
-        return mol
-
-    energies = get_conformer_energies(mol)
-    tfd = tfd_matrix(mol)
-    sort = np.argsort(energies)  # sort by increasing energy
-    keep = []  # always keep lowest-energy conformer
-    discard = []
-
-    for i in sort:
-        this_tfd = tfd[i][np.asarray(keep, dtype=int)]
-        # discard conformers within the tfd threshold
-        if np.all(this_tfd >= tfd_thresh):
-            keep.append(i)
-        else:
-            discard.append(i)
-
-    # create a new molecule to hold the chosen conformers
-    # this ensures proper conformer IDs and energy-based ordering
-    new = Chem.Mol(mol)
-    new.RemoveAllConformers()
-    for i in keep:
-        conf = mol.GetConformer(int(i))
-        new.AddConformer(conf, assignId=True)
-
-    return new
-
-def tfd_matrix(mol: Chem.Mol) -> np.array:
-    """Calculates the TFD matrix for all conformers in a molecule.
-    """
-    tfd = TorsionFingerprints.GetTFDMatrix(mol, useWeights=False)
-    n = int(np.sqrt(len(tfd)*2))+1
-    idx = np.tril_indices(n, k=-1, m=n)
-    matrix = np.zeros((n,n))
-    matrix[idx] = tfd
-    matrix += np.transpose(matrix)
-    return matrix
-
-def calculate_normalizers(mol: Chem.Mol, num_confs: int = 200, pruning_thresh: float = 0.05) -> Tuple[float, float]:
-    """Calculates the :math:`E_0` and :math:`Z_0` normalizing constants for a molecule used in the TorsionNet [1]_ paper.
-
-    Parameters
-    ----------
-    mol : RDKit Mol
-        The molecule of interest.
-    num_confs : int
-        The number of conformers to generate when calculating the constants. Should equal
-        the number of steps for each episode of the environment containing this molecule.
-    pruning_thresh : float
-        TFD threshold for pruning the conformers of `mol`.
-
-    References
-    ----------
-    .. [1] `TorsionNet paper <https://arxiv.org/abs/2006.07078>`_
-    """
-    Chem.MMFFSanitizeMolecule(mol)
-    confslist = Chem.EmbedMultipleConfs(mol, numConfs = num_confs, useRandomCoords=True)
-    if (len(confslist) < 1):
-        raise Exception('Unable to embed molecule with conformer using rdkit')
-    
-    for conf_id in range(mol.GetNumConformers()):
-        optimize_conf(mol, conf_id)
-    
-    mol = prune_conformers(mol, pruning_thresh)
-    energys = get_conformer_energies(mol)
-    E0 = energys.min()
-    Z0 = np.sum(np.exp(-(energys - E0)))
-
-    mol.RemoveAllConformers()
-
-    return E0, Z0

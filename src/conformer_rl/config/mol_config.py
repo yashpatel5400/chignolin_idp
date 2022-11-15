@@ -11,6 +11,8 @@ class MolConfig:
 
     Attributes
     ----------
+    mol_fn : str, required for all environments
+        Path to where the molecule was loaded from (used for seeding the OpenMM simulator).
     mol : rdkit Mol, required for all environments
         The molecule to be used by the environment.
     num_conformers : int
@@ -36,6 +38,7 @@ class MolConfig:
     """
 
     def __init__(self):
+        self.mol_fn = ""
         self.mol = None
         self.num_conformers = 200
         self.seed = -1

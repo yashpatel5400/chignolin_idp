@@ -16,7 +16,7 @@ from conformer_rl.models import RTGNRecurrent
 
 from conformer_rl.molecule_generation.generate_molecule_config import config_from_rdkit
 from conformer_rl.agents import PPORecurrentExternalCurriculumAgent
-from conformer_rl.utils import set_simulator_context
+from conformer_rl.utils import MDSimulator
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
                                                                                                                                                                                                      
@@ -32,27 +32,23 @@ if __name__ == '__main__':
     chignolin_fasta = "YYDPETGTWY"
     curriculum_lens = [3, 5, 7, 10]
     curricula_num_conformers = [300, 500, 700, 1000]
+    
+    curriculum_fastas = [chignolin_fasta[:curriculum_len] for curriculum_len in curriculum_lens]
+    chignolin_pdb_fns = [f"src/conformer_rl/molecule_generation/chignolin/{curriculum_fasta}.pdb" for curriculum_fasta in curriculum_fastas]
+    simulator = MDSimulator(chignolin_pdb_fns)
 
     mol_configs = []
-    for idx, curriculum_len in enumerate(curriculum_lens):
-        curriculum_fasta = chignolin_fasta[:curriculum_len]
-        filename = f"{curriculum_fasta}.pkl"
-        if os.path.exists(filename):
-            with open(filename, "rb") as f:
-                print(f"Loading {filename}...")
+    for idx, chignolin_pdb_fn in enumerate(chignolin_pdb_fns):
+        cached_filename = f"{curriculum_fastas[idx]}.pkl"
+        if os.path.exists(cached_filename):
+            with open(cached_filename, "rb") as f:
+                print(f"Loading {cached_filename}...")
                 mol_config = pickle.load(f)
         else:
-            set_simulator_context(curriculum_fasta)
-            # curriculum_mol = Chem.rdmolfiles.MolFromFASTA(curriculum_fasta)
-            chignolin_pdb_fn = f"src/conformer_rl/molecule_generation/chignolin/{curriculum_fasta}.pdb"
-            curriculum_mol = Chem.rdmolfiles.MolFromPDBFile(chignolin_pdb_fn, removeHs=False)
-            Chem.SanitizeMol(curriculum_mol)
-    
-            mol_config = config_from_rdkit(curriculum_mol, num_conformers=curricula_num_conformers[idx], calc_normalizers=True) 
-            mol_config.mol_name = curriculum_fasta
-            with open(filename, "wb") as f:
+            mol_config = config_from_rdkit(chignolin_pdb_fn, num_conformers=curricula_num_conformers[idx], calc_normalizers=True, simulator=simulator) 
+            with open(cached_filename, "wb") as f:
                 pickle.dump(mol_config, f)
-        
+        mol_config.mol_fn = chignolin_pdb_fn
         mol_configs.append(mol_config)
     
     eval_mol_config = copy.deepcopy(mol_configs[-1]) 
