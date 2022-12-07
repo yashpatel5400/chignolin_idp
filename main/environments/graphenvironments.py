@@ -112,7 +112,7 @@ def mol2vecstupidsimple(mol):
     return data
 
 def mol2vecskeleton(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -137,7 +137,7 @@ def mol2vecskeleton(mol):
     return data
 
 def mol2vecskeleton_features(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -161,7 +161,7 @@ def mol2vecskeleton_features(mol):
     return data
 
 def mol2vecdense(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -197,7 +197,7 @@ def mol2vecdense(mol):
     return data
 
 def mol2vecbasic(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -225,7 +225,7 @@ def mol2vecbasic(mol):
     return data
 
 def mol2vecskeletonpoints(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -253,7 +253,7 @@ def mol2vecskeletonpoints(mol):
     return data
 
 def mol2vecskeletonpoints_test(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -273,7 +273,7 @@ def mol2vecskeletonpoints_test(mol):
     return data
 
 def mol2vecskeletonpointswithdistance(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -387,8 +387,15 @@ class SetGibbs(gym.Env):
                 self.conf = self.mol.GetConformer(id=0)
 
             else:
-                self.mol = Chem.MolFromMolFile(os.path.join(self.folder_name, obj['molfile']))
-                self.mol = Chem.AddHs(self.mol)
+                mol_fn = os.path.join(self.folder_name, obj['molfile'])
+                mol_ext = os.path.splitext(mol_fn)[-1]
+                if mol_ext == ".mol":
+                    self.mol = Chem.MolFromMolFile(mol_fn)
+                    self.mol = Chem.AddHs(self.mol)
+                elif mol_ext == ".pdb":
+                    self.mol = Chem.rdmolfiles.MolFromPDBFile(mol_fn, removeHs=False)
+                else:
+                    raise Exception(f"Invalid mol extension used: {mol_ext}")
                 self.conf = self.mol.GetConformer(id=0)
                 res = Chem.AllChem.MMFFOptimizeMoleculeConfs(self.mol)
 
@@ -506,8 +513,15 @@ class SetGibbs(gym.Env):
                 res = Chem.AllChem.MMFFOptimizeMoleculeConfs(self.mol)
                 self.conf = self.mol.GetConformer(id=0)
             else:
-                self.mol = Chem.MolFromMolFile(os.path.join(self.folder_name, obj['molfile']))
-                self.mol = Chem.AddHs(self.mol)
+                mol_fn = os.path.join(self.folder_name, obj['molfile'])
+                mol_ext = os.path.splitext(mol_fn)[-1]
+                if mol_ext == ".mol":
+                    self.mol = Chem.MolFromMolFile(mol_fn)
+                    self.mol = Chem.AddHs(self.mol)
+                elif mol_ext == ".pdb":
+                    self.mol = Chem.rdmolfiles.MolFromPDBFile(mol_fn, removeHs=False)
+                else:
+                    raise Exception(f"Invalid mol extension used: {mol_ext}")
                 self.conf = self.mol.GetConformer(id=0)
                 res = Chem.AllChem.MMFFOptimizeMoleculeConfs(self.mol)
             break
@@ -949,3 +963,11 @@ class LigninPruningSkeletonEvalSgldFinalLong015(UniqueSetGibbs, SetGibbsSkeleton
 class LigninPruningSkeletonEvalSgldFinalLong015Save(UniqueSetGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
     def __init__(self):
         super(LigninPruningSkeletonEvalSgldFinalLong015Save, self).__init__('lignin_eval_final_sgld/', eval=True, temp_normal=0.2519, sort_by_size=False, pruning_thresh=0.15)
+
+class ChignolinAllSetPruningLogSkeletonCurriculumLong(SetCurriculaExtern, PruningSetLogGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
+    def __init__(self):
+        super(ChignolinAllSetPruningLogSkeletonCurriculumLong, self).__init__('chignolin/')
+
+class ChignolinPruningSkeletonValidationLong(UniqueSetGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
+    def __init__(self):
+        super(ChignolinPruningSkeletonValidationLong, self).__init__('chignolin_eval/')
