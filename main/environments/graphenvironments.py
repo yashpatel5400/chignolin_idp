@@ -966,7 +966,7 @@ class LigninPruningSkeletonEvalSgldFinalLong015Save(UniqueSetGibbs, SetGibbsSkel
 
 class ChignolinAllSetPruningLogSkeletonCurriculumLong(SetCurriculaExtern, PruningSetLogGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
     def __init__(self):
-        super(ChignolinAllSetPruningLogSkeletonCurriculumLong, self).__init__('chignolin/')
+        super(ChignolinAllSetPruningLogSkeletonCurriculumLong, self).__init__('chignolin/', sort_by_size=False)
 
 class ChignolinPruningSkeletonValidationLong(UniqueSetGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
     def __init__(self):
