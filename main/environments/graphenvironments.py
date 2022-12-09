@@ -359,7 +359,7 @@ class SetGibbs(gym.Env):
         
         self.choice = -1
         self.episode_reward = 0
-        self.choice_ind = 1
+        self.choice_ind = 4
         self.num_good_episodes = 0
 
         if '/' in self.folder_name:
