@@ -204,8 +204,6 @@ class PPORecurrentAgent(BaseAgent):
 
         advantages = (advantages - advantages.mean()) / advantages.std()
 
-        curriculum_stage = self.task.level()
-        self.writer.add_scalar('curriculum_stage', np.mean(curriculum_stage), self.total_steps)
         self.writer.add_scalar('advantages', advantages.mean(), self.total_steps)
 
         states = []
