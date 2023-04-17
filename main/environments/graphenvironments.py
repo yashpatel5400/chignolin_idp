@@ -112,7 +112,7 @@ def mol2vecstupidsimple(mol):
     return data
 
 def mol2vecskeleton(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -137,7 +137,7 @@ def mol2vecskeleton(mol):
     return data
 
 def mol2vecskeleton_features(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -161,7 +161,7 @@ def mol2vecskeleton_features(mol):
     return data
 
 def mol2vecdense(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -197,7 +197,7 @@ def mol2vecdense(mol):
     return data
 
 def mol2vecbasic(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -225,7 +225,7 @@ def mol2vecbasic(mol):
     return data
 
 def mol2vecskeletonpoints(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -253,7 +253,7 @@ def mol2vecskeletonpoints(mol):
     return data
 
 def mol2vecskeletonpoints_test(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -273,7 +273,7 @@ def mol2vecskeletonpoints_test(mol):
     return data
 
 def mol2vecskeletonpointswithdistance(mol):
-    mol = Chem.rdmolops.RemoveHs(mol)
+    # mol = Chem.rdmolops.RemoveHs(mol)
     conf = mol.GetConformer(id=-1)
     atoms = mol.GetAtoms()
     bonds = mol.GetBonds()
@@ -323,12 +323,6 @@ def sort_func(x, y):
             else:
                 return 0
 
-
-confgen = ConformerGeneratorCustom(max_conformers=1,
-                             rmsd_threshold=None,
-                             force_field='mmff',
-                             pool_multiplier=1)
-
 class SetGibbs(gym.Env):
     metadata = {'render.modes': ['human']}
 
@@ -341,15 +335,19 @@ class SetGibbs(gym.Env):
             temp_normal=1.0, 
             sort_by_size=True,
             pruning_thresh=0.05,
+            output_fn=None,
         ):
         super(SetGibbs, self).__init__()
         self.gibbs_normalize = gibbs_normalize
         self.temp_normal = temp_normal
         self.all_files = glob.glob(f'{folder_name}*.json')
         self.folder_name = folder_name
+        self.active_fn = None
+        self.output_fn = output_fn
 
         if sort_by_size:
-            self.all_files.sort(key=os.path.getsize)
+            self.all_files.sort(key=lambda x : len(x))
+            # self.all_files.sort(key=os.path.getsize)
         else:
             self.all_files.sort()
 
@@ -367,7 +365,7 @@ class SetGibbs(gym.Env):
 
         while True:
             obj = self.molecule_choice()
-
+            
             if 'inv_temp' in obj:
                 self.temp_normal = obj['inv_temp']
 
@@ -378,26 +376,40 @@ class SetGibbs(gym.Env):
                 self.total = 1.0
 
             if 'mol' in obj:
-                self.mol = Chem.MolFromSmiles(obj['mol'])
-                self.mol = Chem.AddHs(self.mol)
+                # self.mol = Chem.MolFromSmiles(obj['mol'])
+                # self.mol = Chem.AddHs(self.mol)
+                print(self.active_fn)
+                self.mol = Chem.rdmolfiles.MolFromPDBFile(self.active_fn, removeHs=False)
                 res = AllChem.EmbedMultipleConfs(self.mol, numConfs=1)
                 if not len(res):
                     continue
-                res = Chem.AllChem.MMFFOptimizeMoleculeConfs(self.mol)
+                self.md_sim = MDSimulatorPDB(self.active_fn)
+                res = self.md_sim.optimize_confs(self.mol)
                 self.conf = self.mol.GetConformer(id=0)
 
             else:
-                self.mol = Chem.MolFromMolFile(os.path.join(self.folder_name, obj['molfile']))
-                self.mol = Chem.AddHs(self.mol)
+                mol_fn = os.path.join(self.folder_name, obj['molfile'])
+                mol_ext = os.path.splitext(mol_fn)[-1]
+                if mol_ext == ".mol":
+                    self.mol = Chem.MolFromMolFile(mol_fn)
+                    self.mol = Chem.AddHs(self.mol)
+                elif mol_ext == ".pdb":
+                    self.mol = Chem.rdmolfiles.MolFromPDBFile(mol_fn, removeHs=False)
+                else:
+                    raise Exception(f"Invalid mol extension used: {mol_ext}")
                 self.conf = self.mol.GetConformer(id=0)
-                res = Chem.AllChem.MMFFOptimizeMoleculeConfs(self.mol)
+                self.md_sim = MDSimulatorPDB(mol_fn)
+                res = self.md_sim.optimize_confs(self.mol)
 
             break
 
         self.everseen = set()
         nonring, ring = TorsionFingerprints.CalculateTorsionLists(self.mol)
         self.nonring = [list(atoms[0]) for atoms, ang in nonring]
-        logging.info(f'rbn: {len(self.nonring)}')
+        
+        num_torsions = len(self.nonring)
+        logging.info(f'rbn: {num_torsions}')
+        # action and observation space are the same: rotations of Ca-backbone torsions
 
         self.delta_t = []
         self.current_step = 0
@@ -415,7 +427,7 @@ class SetGibbs(gym.Env):
             return 0
         else:
             self.seen.add(tuple(self.action))
-            current = confgen.get_conformer_energies(self.mol)[0]
+            current = self.md_sim.get_conformer_energies(self.mol)[0]
             current = current * self.temp_normal
             return np.exp(-1.0 * (current - self.standard_energy)) / self.total
 
@@ -443,12 +455,17 @@ class SetGibbs(gym.Env):
                 Chem.MolToMolFile(self.mol, 'debug.mol')
                 logging.error('exit with debug.mol')
                 exit(0)
-        Chem.AllChem.MMFFOptimizeMolecule(self.mol, confId=0)
-
+        
+        self.md_sim.optimize_conf(self.mol, conf_id=0)
         self.mol_appends()
 
         obs = self._get_obs()
         rew = self._get_reward()
+        
+        # molecule sometimes ends up in invalid states: currently "patch up" with no reward, but should find root cause
+        if not np.isfinite(rew) or rew > 1e15:
+            rew = 0
+
         self.episode_reward += rew
 
         print("reward is ", rew)
@@ -476,6 +493,7 @@ class SetGibbs(gym.Env):
 
     def molecule_choice(self):
         cjson = np.random.choice(self.all_files)
+        self.active_fn = os.path.join("disordered_chignolin", f"{os.path.basename(cjson).split('.')[0]}.pdb")
         with open(cjson) as fp:
             obj = json.load(fp)
         return obj
@@ -498,18 +516,28 @@ class SetGibbs(gym.Env):
                 self.total = 1.0
 
             if 'mol' in obj:
-                self.mol = Chem.MolFromSmiles(obj['mol'])
-                self.mol = Chem.AddHs(self.mol)
+                # self.mol = Chem.MolFromSmiles(obj['mol'])
+                # self.mol = Chem.AddHs(self.mol)
+                self.mol = Chem.rdmolfiles.MolFromPDBFile(self.active_fn, removeHs=False)
                 res = AllChem.EmbedMultipleConfs(self.mol, numConfs=1)
                 if not len(res):
                     continue
-                res = Chem.AllChem.MMFFOptimizeMoleculeConfs(self.mol)
+                self.md_sim = MDSimulatorPDB(self.active_fn)
+                res = self.md_sim.optimize_confs(self.mol)
                 self.conf = self.mol.GetConformer(id=0)
             else:
-                self.mol = Chem.MolFromMolFile(os.path.join(self.folder_name, obj['molfile']))
-                self.mol = Chem.AddHs(self.mol)
+                mol_fn = os.path.join(self.folder_name, obj['molfile'])
+                mol_ext = os.path.splitext(mol_fn)[-1]
+                if mol_ext == ".mol":
+                    self.mol = Chem.MolFromMolFile(mol_fn)
+                    self.mol = Chem.AddHs(self.mol)
+                elif mol_ext == ".pdb":
+                    self.mol = Chem.rdmolfiles.MolFromPDBFile(mol_fn, removeHs=False)
+                else:
+                    raise Exception(f"Invalid mol extension used: {mol_ext}")
                 self.conf = self.mol.GetConformer(id=0)
-                res = Chem.AllChem.MMFFOptimizeMoleculeConfs(self.mol)
+                self.md_sim = MDSimulatorPDB(mol_fn)
+                res = self.md_sim.optimize_confs(self.mol)
             break
 
         self.episode_reward = 0
@@ -555,7 +583,7 @@ class SetEnergy(SetGibbs):
         else:
             self.seen.add(tuple(self.action))
             print('standard', self.standard_energy)
-            current = confgen.get_conformer_energies(self.mol)[0] * self.temp_normal
+            current = self.md_sim.get_conformer_energies(self.mol)[0] * self.temp_normal
             print('current', current )
             if current - self.standard_energy > 20.0:
                 return 0.0
@@ -578,7 +606,7 @@ class SetEval(SetGibbs):
 
 class SetEvalNoPrune(SetEval):
     def _get_reward(self):
-        current = confgen.get_conformer_energies(self.mol)[0]
+        current = self.md_sim.get_conformer_energies(self.mol)[0]
         current = current * self.temp_normal
         print('standard', self.standard_energy)
         print('current', current)
@@ -589,7 +617,7 @@ class SetEvalNoPrune(SetEval):
 class UniqueSetGibbs(SetGibbs):
     def _get_reward(self):
         self.seen.add(tuple(self.action))
-        current = confgen.get_conformer_energies(self.mol)[0]
+        current = self.md_sim.get_conformer_energies(self.mol)[0]
         current = current * self.temp_normal
         print('standard', self.standard_energy)
         print('current', current)
@@ -602,10 +630,10 @@ class UniqueSetGibbs(SetGibbs):
         return rew
 
     def done_neg_reward(self):
-        before_total = np.exp(-1.0 * (confgen.get_conformer_energies(self.backup_mol) * self.temp_normal - self.standard_energy)).sum()
+        before_total = np.exp(-1.0 * (self.md_sim.get_conformer_energies(self.backup_mol) * self.temp_normal - self.standard_energy)).sum()
         before_conformers = self.backup_mol.GetNumConformers()
-        self.backup_mol = prune_conformers(self.backup_mol, self.pruning_thresh)
-        after_total = np.exp(-1.0 * (confgen.get_conformer_energies(self.backup_mol) * self.temp_normal - self.standard_energy)).sum()
+        self.backup_mol = self.md_sim.prune_conformers(self.backup_mol, self.pruning_thresh)
+        after_total = np.exp(-1.0 * (self.md_sim.get_conformer_energies(self.backup_mol) * self.temp_normal - self.standard_energy)).sum()
         after_conformers = self.backup_mol.GetNumConformers()
         diff = before_total - after_total
         print('diff is ', diff)
@@ -624,18 +652,19 @@ class UniqueSetGibbs(SetGibbs):
             import pickle
             i = 0
             while True:
-                if os.path.exists(f'test_mol{i}.pickle'):
+                fn = f'{self.output_fn}{i}.pickle'
+                if os.path.exists(fn):
                     i += 1
                     continue
                 else:
-                    with open(f'test_mol{i}.pickle', 'wb') as fp:
+                    with open(fn, 'wb') as fp:
                         pickle.dump(self.backup_mol, fp)
                     break
 
 class PruningSetGibbs(SetGibbs):
     def _get_reward(self):
         self.seen.add(tuple(self.action))
-        current = confgen.get_conformer_energies(self.mol)[0]
+        current = self.md_sim.get_conformer_energies(self.mol)[0]
         current = current * self.temp_normal
         print('standard', self.standard_energy)
         print('current', current)
@@ -668,13 +697,13 @@ class PruningSetGibbs(SetGibbs):
         if self.current_step == 1:
             self.total_energy = 0
             self.backup_mol = Chem.Mol(self.mol)
-            self.backup_energys = list(confgen.get_conformer_energies(self.backup_mol))
+            self.backup_energys = list(self.md_sim.get_conformer_energies(self.backup_mol))
             print('num_energys', len(self.backup_energys))
             return
 
         c = self.mol.GetConformer(id=0)
         self.backup_mol.AddConformer(c, assignId=True)
-        self.backup_energys += list(confgen.get_conformer_energies(self.mol))
+        self.backup_energys += list(self.md_sim.get_conformer_energies(self.mol))
         print('num_energys', len(self.backup_energys))
 
 class TestPruningSetGibbs(PruningSetGibbs):
@@ -684,7 +713,7 @@ class TestPruningSetGibbs(PruningSetGibbs):
 class PruningSetGibbsQuick(SetGibbs):
     def _get_reward(self):
         self.seen.add(tuple(self.action))
-        current = confgen.get_conformer_energies(self.mol)[0]
+        current = self.md_sim.get_conformer_energies(self.mol)[0]
         current = current * self.temp_normal
         print('standard', self.standard_energy)
         print('current', current)
@@ -779,26 +808,33 @@ class SetCurriculaExtern(SetGibbs):
         return info
 
     def molecule_choice(self):
+        unique_lens = sorted(list(set([len(fn) for fn in self.all_files])))
+        separated_fns = [[fn for fn in self.all_files if len(fn) == unique_len] for unique_len in unique_lens]
+        
         if self.choice_ind != 1:
-            p = 0.5 * np.ones(self.choice_ind) / (self.choice_ind - 1)
-            p[-1] = 0.5
-            cjson = np.random.choice(self.all_files[0:self.choice_ind], p=p)
+            len_p = 0.5 * np.ones(self.choice_ind) / (self.choice_ind - 1)
+            len_p[-1] = 0.5
+            stage_set = np.random.choice(list(range(self.choice_ind)), p=len_p)
+            cjson = np.random.choice(separated_fns[stage_set])
         else:
-            cjson = self.all_files[0]
+            cjson = np.random.choice(separated_fns[0])
 
         print(cjson, '\n\n\n\n')
-
+        self.active_fn = os.path.join("/home/yppatel/misc/clean_idp_rl/disordered_chignolin", f"{os.path.basename(cjson).split('.')[0]}.pdb")
+        
         with open(cjson) as fp:
             obj = json.load(fp)
         return obj
 
     def change_level(self, up_or_down):
         if up_or_down:
-            self.choice_ind *= 2
+            # self.choice_ind *= 2
+            self.choice_ind += 1
 
         else:
             if self.choice_ind != 1:
-                self.choice_ind = int(self.choice_ind / 2)
+                # self.choice_ind = int(self.choice_ind / 2)
+                self.choice_ind -= 1
 
         self.choice_ind = min(self.choice_ind, len(self.all_files))
 
@@ -949,3 +985,19 @@ class LigninPruningSkeletonEvalSgldFinalLong015(UniqueSetGibbs, SetGibbsSkeleton
 class LigninPruningSkeletonEvalSgldFinalLong015Save(UniqueSetGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
     def __init__(self):
         super(LigninPruningSkeletonEvalSgldFinalLong015Save, self).__init__('lignin_eval_final_sgld/', eval=True, temp_normal=0.2519, sort_by_size=False, pruning_thresh=0.15)
+
+class ChignolinAllSetPruningLogSkeletonCurriculumLong(SetCurriculaExtern, PruningSetLogGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
+    def __init__(self):
+        super(ChignolinAllSetPruningLogSkeletonCurriculumLong, self).__init__('chignolin_out/', pruning_thresh=0.15)
+
+class ChignolinPruningSkeletonValidationLong(UniqueSetGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
+    def __init__(self):
+        super(ChignolinPruningSkeletonValidationLong, self).__init__('chignolin_eval_sample/', eval=True, pruning_thresh=0.15)
+
+class DisorderedChignolinAllSetPruningLogSkeletonCurriculumLong(SetCurriculaExtern, PruningSetLogGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
+    def __init__(self):
+        super(DisorderedChignolinAllSetPruningLogSkeletonCurriculumLong, self).__init__('disordered_chignolin/', pruning_thresh=0.15)
+
+class DisorderedChignolinPruningSkeletonValidationLong(UniqueSetGibbs, SetGibbsSkeletonPoints, LongEndingSetGibbs):
+    def __init__(self):
+        super(DisorderedChignolinPruningSkeletonValidationLong, self).__init__('disordered_chignolin_eval/', eval=True, pruning_thresh=0.15, output_fn="trained_chignolin/")
