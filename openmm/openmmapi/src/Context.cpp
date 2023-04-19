@@ -188,13 +188,13 @@ void Context::setStepCount(long long count) {
 
 void Context::setPositions(const vector<Vec3>& positions) {
     if ((int) positions.size() != impl->getSystem().getNumParticles())
-        throw OpenMMException("Called setPositions() on a Context with the wrong number of positions");
+        throw OpenMMException("HAHA, FOUND IT setPositions() on a Context with the wrong number of positions");
     impl->setPositions(positions);
 }
 
 void Context::setVelocities(const vector<Vec3>& velocities) {
     if ((int) velocities.size() != impl->getSystem().getNumParticles())
-        throw OpenMMException("Called setVelocities() on a Context with the wrong number of velocities");
+        throw OpenMMException("HAHA, FOUND IT setVelocities() on a Context with the wrong number of velocities");
     impl->setVelocities(velocities);
 }
 

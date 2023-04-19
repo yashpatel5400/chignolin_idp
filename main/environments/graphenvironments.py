@@ -468,9 +468,9 @@ class SetGibbs(gym.Env):
 
         self.episode_reward += rew
 
-        print("reward is ", rew)
-        print ("new state is:")
-        print_torsions(self.mol)
+        # print("reward is ", rew)
+        # print ("new state is:")
+        # print_torsions(self.mol)
 
         info = {}
         if self.done:
@@ -698,13 +698,13 @@ class PruningSetGibbs(SetGibbs):
             self.total_energy = 0
             self.backup_mol = Chem.Mol(self.mol)
             self.backup_energys = list(self.md_sim.get_conformer_energies(self.backup_mol))
-            print('num_energys', len(self.backup_energys))
+            # print('num_energys', len(self.backup_energys))
             return
 
         c = self.mol.GetConformer(id=0)
         self.backup_mol.AddConformer(c, assignId=True)
         self.backup_energys += list(self.md_sim.get_conformer_energies(self.mol))
-        print('num_energys', len(self.backup_energys))
+        # print('num_energys', len(self.backup_energys))
 
 class TestPruningSetGibbs(PruningSetGibbs):
     def __init__(self):

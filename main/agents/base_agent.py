@@ -27,7 +27,8 @@ class BaseAgent:
                 self.close()
                 break
             self.step()
-
+            print(f"Complete step: {self.total_steps}")
+            
     def close(self):
         self.task.close()
 

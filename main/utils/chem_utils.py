@@ -1,4 +1,5 @@
 from deepchem.utils import conformers
+import multiprocessing as mp
 import numpy as np
 import bisect
 import torch
@@ -32,10 +33,14 @@ class MDSimulatorPDB:
         integrator = openmm.VerletIntegrator(0.002 * u.picoseconds)
         
         use_cuda = True
+        try:
+            assigned_gpu = int(mp.current_process().name[-1])
+        except:
+            assigned_gpu = 0
         if use_cuda:
             platform = openmm.Platform.getPlatformByName("CUDA")
             # start at 1, since we assume 0 is being used by PyTorch, to avoid GPU memory issues
-            assigned_gpu = np.random.randint(1, torch.cuda.device_count())
+            # assigned_gpu = np.random.randint(1, torch.cuda.device_count())
             prop = dict(CudaPrecision="mixed", DeviceIndex=f"{assigned_gpu}")
             self.simulator = app.Simulation(pdb.topology, system, integrator, platform, prop)
         else:

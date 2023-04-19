@@ -27,7 +27,7 @@ def ppo_feature(env_name, args, **kwargs):
     config.tag=tag
     config.env_name = env_name
 
-    config.num_workers = 5
+    config.num_workers = 3
     single_process = (config.num_workers == 1)
     config.linear_lr_scale = False
 
@@ -54,12 +54,12 @@ def ppo_feature(env_name, args, **kwargs):
     config.rollout_length = 20
     config.recurrence = 5
     config.optimization_epochs = 4
-    # config.mini_batch_size = config.rollout_length * config.num_workers
-    config.mini_batch_size = 25
+    config.mini_batch_size = 5 * config.num_workers
+    # config.mini_batch_size = 25
     config.ppo_ratio_clip = 0.2
     config.save_interval = config.num_workers * 1000 * 2
     config.eval_interval = config.num_workers * 1000 * 2
-    config.eval_episodes = 0
+    config.eval_episodes = 1
     config.eval_env = Task('DisorderedChignolinPruningSkeletonValidationLong-v0', seed=random.randint(0,7e4))
     return PPORecurrentAgent(config)
 
