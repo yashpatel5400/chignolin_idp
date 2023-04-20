@@ -64,6 +64,7 @@ public:
      *                       default value is 0.
      */
     static void minimize(Context& context, double tolerance = 10, int maxIterations = 0);
+    static void minimize(std::vector<Context>& context, double tolerance = 10, int maxIterations = 0);
 };
 
 } // namespace OpenMM

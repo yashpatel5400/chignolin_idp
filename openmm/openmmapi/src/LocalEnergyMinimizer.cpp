@@ -35,6 +35,7 @@
 #include "openmm/VerletIntegrator.h"
 #include "lbfgs.h"
 #include <cmath>
+#include <iostream>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -152,6 +153,7 @@ static lbfgsfloatval_t evaluate(void *instance, const lbfgsfloatval_t *x, lbfgsf
 }
 
 void LocalEnergyMinimizer::minimize(Context& context, double tolerance, int maxIterations) {
+    std::cerr << "TESTING -- this is minimize call" << std::endl;
     const System& system = context.getSystem();
     int numParticles = system.getNumParticles();
     double constraintTol = context.getIntegrator().getConstraintTolerance();
@@ -245,4 +247,3 @@ void LocalEnergyMinimizer::minimize(Context& context, double tolerance, int maxI
     if (constraintTol < workingConstraintTol)
         context.applyConstraints(workingConstraintTol);
 }
-
