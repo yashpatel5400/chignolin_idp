@@ -153,7 +153,7 @@ static lbfgsfloatval_t evaluate(void *instance, const lbfgsfloatval_t *x, lbfgsf
 }
 
 void LocalEnergyMinimizer::minimize(Context& context, double tolerance, int maxIterations) {
-    std::cerr << "TESTING -- this is minimize call" << std::endl;
+    std::cerr << "Calling single minimize()" << std::endl;
     const System& system = context.getSystem();
     int numParticles = system.getNumParticles();
     double constraintTol = context.getIntegrator().getConstraintTolerance();
@@ -246,4 +246,11 @@ void LocalEnergyMinimizer::minimize(Context& context, double tolerance, int maxI
     
     if (constraintTol < workingConstraintTol)
         context.applyConstraints(workingConstraintTol);
+}
+
+void LocalEnergyMinimizer::minimize(std::vector<Context>& contexts, double tolerance, int maxIterations) {
+    std::cerr << "Calling vectorized minimize()" << std::endl;
+    for (Context& context : contexts) {
+        minimize(context, tolerance, maxIterations);
+    }
 }
