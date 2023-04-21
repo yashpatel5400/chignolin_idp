@@ -136,23 +136,6 @@ class Simulation(object):
         """
         mm.LocalEnergyMinimizer.minimize(self.context, tolerance, maxIterations)
 
-    def minimizeMultipleEnergies(self, tolerance=10*unit.kilojoules_per_mole/unit.nanometer, maxIterations=0):
-        """Perform a local energy minimization on the system.
-
-        Parameters
-        ----------
-        tolerance : force
-            This specifies how precisely the energy minimum must be located.  Minimization
-            is halted once the root-mean-square value of all force components reaches
-            this tolerance.
-        maxIterations : int
-            The maximum number of iterations to perform.  If this is 0,
-            minimization is continued until the results converge without regard
-            to how many iterations it takes.
-        """
-        print("Minimizing asdf")
-        mm.LocalEnergyMinimizer.minimize(self.context, tolerance, maxIterations)
-
     def step(self, steps):
         """Advance the simulation by integrating a specified number of time steps."""
         self._simulate(endStep=self.currentStep+steps)
