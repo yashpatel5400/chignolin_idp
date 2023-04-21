@@ -279,6 +279,10 @@ void CpuCalcForcesAndEnergyKernel::beginComputation(ContextImpl& context, bool i
     }
 }
 
+void CpuCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForce, bool includeEnergy, int groups) {
+    std::cerr << "CPU test" << std::endl;
+}
+
 double CpuCalcForcesAndEnergyKernel::finishComputation(ContextImpl& context, bool includeForce, bool includeEnergy, int groups, bool& valid) {
     // Sum the forces from all the threads.
     

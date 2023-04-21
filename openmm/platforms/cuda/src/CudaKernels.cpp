@@ -71,6 +71,10 @@ void CudaCalcForcesAndEnergyKernel::beginComputation(ContextImpl& context, bool 
         derivs[param.first] = 0;
 }
 
+void CudaCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForces, bool includeEnergy, int groups) {
+    std::cerr << "CUDA test" << std::endl;
+}
+
 double CudaCalcForcesAndEnergyKernel::finishComputation(ContextImpl& context, bool includeForces, bool includeEnergy, int groups, bool& valid) {
     ContextSelector selector(cu);
     cu.getBondedUtilities().computeInteractions(groups);
@@ -285,7 +289,6 @@ void CudaUpdateStateDataKernel::computeShiftedVelocities(ContextImpl& context, d
 }
 
 void CudaUpdateStateDataKernel::getForces(ContextImpl& context, vector<Vec3>& forces) {
-    std::cerr << "I FINALLY FOUND YOU!!" << std::endl;
     ContextSelector selector(cu);
     long long* force = (long long*) cu.getPinnedBuffer();
     cu.getForce().download(force);

@@ -86,6 +86,10 @@ void OpenCLCalcForcesAndEnergyKernel::beginComputation(ContextImpl& context, boo
         derivs[param.first] = 0;
 }
 
+void OpenCLCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForce, bool includeEnergy, int groups) {
+    std::cerr << "OpenCL test" << std::endl;
+}
+
 double OpenCLCalcForcesAndEnergyKernel::finishComputation(ContextImpl& context, bool includeForces, bool includeEnergy, int groups, bool& valid) {
     cl.getBondedUtilities().computeInteractions(groups);
     cl.getNonbondedUtilities().computeInteractions(groups, includeForces, includeEnergy);
