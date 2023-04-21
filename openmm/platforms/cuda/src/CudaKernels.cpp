@@ -71,7 +71,7 @@ void CudaCalcForcesAndEnergyKernel::beginComputation(ContextImpl& context, bool 
         derivs[param.first] = 0;
 }
 
-void CudaCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForces, bool includeEnergy, int groups) {
+void CudaCalcForcesAndEnergyKernel::test(std::vector<ContextImpl>& context, bool includeForce, bool includeEnergy, int groups) {
     std::cerr << "CUDA test" << std::endl;
 }
 

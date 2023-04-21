@@ -86,7 +86,7 @@ void OpenCLCalcForcesAndEnergyKernel::beginComputation(ContextImpl& context, boo
         derivs[param.first] = 0;
 }
 
-void OpenCLCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForce, bool includeEnergy, int groups) {
+void OpenCLCalcForcesAndEnergyKernel::test(std::vector<ContextImpl>& context, bool includeForce, bool includeEnergy, int groups) {
     std::cerr << "OpenCL test" << std::endl;
 }
 

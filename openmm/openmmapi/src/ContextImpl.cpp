@@ -311,7 +311,7 @@ double ContextImpl::calcForcesAndEnergy(bool includeForces, bool includeEnergy, 
         throw OpenMMException("Particle positions have not been set");
     lastForceGroups = groups;
     CalcForcesAndEnergyKernel& kernel = initializeForcesKernel.getAs<CalcForcesAndEnergyKernel>();
-    kernel.test(*this, includeForces, includeEnergy, groups);
+    // kernel.test(*this, includeForces, includeEnergy, groups);
     while (true) {
         double energy = 0.0;
         kernel.beginComputation(*this, includeForces, includeEnergy, groups);

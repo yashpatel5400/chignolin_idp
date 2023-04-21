@@ -164,7 +164,7 @@ void OpenCLParallelCalcForcesAndEnergyKernel::beginComputation(ContextImpl& cont
     }
 }
 
-void OpenCLParallelCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForce, bool includeEnergy, int groups) {
+void OpenCLParallelCalcForcesAndEnergyKernel::test(std::vector<ContextImpl>& context, bool includeForce, bool includeEnergy, int groups) {
     std::cerr << "OpenCL Parallel test" << std::endl;
 }
 

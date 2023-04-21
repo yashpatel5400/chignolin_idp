@@ -238,7 +238,7 @@ void CudaParallelCalcForcesAndEnergyKernel::beginComputation(ContextImpl& contex
     data.syncContexts();
 }
 
-void CudaParallelCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForce, bool includeEnergy, int groups) {
+void CudaParallelCalcForcesAndEnergyKernel::test(std::vector<ContextImpl>& context, bool includeForce, bool includeEnergy, int groups) {
     std::cerr << "CUDA Parallel test" << std::endl;
 }
 

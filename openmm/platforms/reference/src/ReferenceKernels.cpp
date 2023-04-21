@@ -172,7 +172,7 @@ void ReferenceCalcForcesAndEnergyKernel::beginComputation(ContextImpl& context, 
         extractEnergyParameterDerivatives(context)[param.first] = 0;
 }
 
-void ReferenceCalcForcesAndEnergyKernel::test(ContextImpl& context, bool includeForces, bool includeEnergy, int groups) {
+void ReferenceCalcForcesAndEnergyKernel::test(std::vector<ContextImpl>& context, bool includeForce, bool includeEnergy, int groups) {
     std::cerr << "Reference test" << std::endl;
 }
 
