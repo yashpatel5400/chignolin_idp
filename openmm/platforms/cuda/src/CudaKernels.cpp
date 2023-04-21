@@ -285,6 +285,7 @@ void CudaUpdateStateDataKernel::computeShiftedVelocities(ContextImpl& context, d
 }
 
 void CudaUpdateStateDataKernel::getForces(ContextImpl& context, vector<Vec3>& forces) {
+    std::cerr << "I FINALLY FOUND YOU!!" << std::endl;
     ContextSelector selector(cu);
     long long* force = (long long*) cu.getPinnedBuffer();
     cu.getForce().download(force);
