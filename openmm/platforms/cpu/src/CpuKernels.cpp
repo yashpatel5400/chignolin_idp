@@ -279,7 +279,7 @@ void CpuCalcForcesAndEnergyKernel::beginComputation(ContextImpl& context, bool i
     }
 }
 
-void CpuCalcForcesAndEnergyKernel::test(std::vector<ContextImpl>& context, bool includeForce, bool includeEnergy, int groups) {
+void CpuCalcForcesAndEnergyKernel::test(std::vector<ContextImpl*>& context, bool includeForce, bool includeEnergy, int groups) {
     std::cerr << "CPU test" << std::endl;
 }
 

@@ -114,7 +114,7 @@ public:
      * calcForcesAndEnergy() methods.  That is, each force kernel may <i>either</i> return its contribution to the
      * energy directly, <i>or</i> add it to an internal buffer so that it will be included here.
      */
-    virtual void test(std::vector<ContextImpl>& context, bool includeForce, bool includeEnergy, int groups) = 0;
+    virtual void test(std::vector<ContextImpl*>& context, bool includeForce, bool includeEnergy, int groups) = 0;
     /**
      * This is called at the end of each force/energy computation, after calcForcesAndEnergy() has been called on
      * every ForceImpl.
